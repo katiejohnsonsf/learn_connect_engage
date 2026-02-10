@@ -7,102 +7,129 @@ on:
 
   # Make it possible to manually run this workflow.
   workflow_dispatch:
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  jobs:
+  crawl-and-summarize:
+    runs-on: ubuntu-latest  # or use self-hosted with GPU
     steps:
-      - name: Checkout the `engage` repository
-        uses: actions/checkout@v3
-      - name: Install node 18
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          node-version: "18"
-      - name: Install python 3.11.x
-        uses: actions/setup-python@v2
-        id: install-python
-        with:
-          python-version: "3.11.3"
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.4.2
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      - name: Load cached venv
-        id: cache-python
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.install-python.outputs.python-version }}-${{ hashfiles('**/poetry.lock') }}
-      - name: Install python dependencies
-        if: steps.cache-python.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-      - name: Cache npm cachefiles
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-
-      - name: Install node dependencies
-        run: npm install
-      - name: Crawl Seattle City Council upcoming meetings
-        run: poetry run python manage.py legistar crawl-calendar --start today > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      - name: Extract text from documents
-        run: poetry run python manage.py documents extract all > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Summarize documents
-        run: poetry run python manage.py documents summarize all > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Summarize legislative actions
-        run: poetry run python manage.py legistar summarize all-legislation > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Summarize upcoming meetings
-        run: poetry run python manage.py legistar summarize all-meetings > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Get finished date/time
+          python-version: '3.11'
+      
+      # If using GPU runners:
+      # - name: Setup CUDA
+      #   uses: Jimver/cuda-toolkit@v0.2.11
+      
+      - name: Install dependencies
         run: |
-          echo "finish_date=$(date +'%Y-%m-%d %H:%M%p %Z')" >> "$GITHUB_ENV"
-      - name: Commit & Push changes
-        uses: actions-js/push@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: "automatic crawl and summarization finished at ${{ env.finish_date }}"
-        # The above commit/push does *not* trigger our normal deploy-to-pages.yml
-        # so we'll also explicitly deploy here
-      - name: Build static site
-        run: poetry run python manage.py distill-local --force --collectstatic
+          pip install poetry
+          poetry install
+      
+      - name: Run summarization (may take longer with OLMo)
+        run: |
+          poetry run python manage.py documents summarize all
+          poetry run python manage.py legistar summarize all-bills
         env:
-          BASE_URL: https://scc.frontseat.org
-          DEBUG: NO
-          SECURE_SSL_REDIRECT: NO
-          SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
-          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
-      - name: Upload artifact to pages
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ./dist
+          OLMO_DEVICE: cpu  # Use 'cuda' if GPU available
+      
+      # ... rest of workflow
+# jobs:
+#   update:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+#     steps:
+#       - name: Checkout the `engage` repository
+#         uses: actions/checkout@v3
+#       - name: Install node 18
+#         uses: actions/setup-node@v2
+#         with:
+#           node-version: "18"
+#       - name: Install python 3.11.x
+#         uses: actions/setup-python@v2
+#         id: install-python
+#         with:
+#           python-version: "3.11.3"
+#       - name: Install poetry
+#         uses: snok/install-poetry@v1
+#         with:
+#           version: 1.4.2
+#           virtualenvs-create: true
+#           virtualenvs-in-project: true
+#       - name: Load cached venv
+#         id: cache-python
+#         uses: actions/cache@v3
+#         with:
+#           path: .venv
+#           key: venv-${{ runner.os }}-${{ steps.install-python.outputs.python-version }}-${{ hashfiles('**/poetry.lock') }}
+#       - name: Install python dependencies
+#         if: steps.cache-python.outputs.cache-hit != 'true'
+#         run: poetry install --no-interaction --no-root
+#       - name: Cache npm cachefiles
+#         uses: actions/cache@v2
+#         with:
+#           path: ~/.npm
+#           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+#           restore-keys: ${{ runner.os }}-node-
+#       - name: Install node dependencies
+#         run: npm install
+#       - name: Crawl Seattle City Council upcoming meetings
+#         run: poetry run python manage.py legistar crawl-calendar --start today > /dev/null
+#         env:
+#           VERBOSE: YES
+#           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#       - name: Extract text from documents
+#         run: poetry run python manage.py documents extract all > /dev/null
+#         env:
+#           VERBOSE: YES
+#           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+#       - name: Summarize documents
+#         run: poetry run python manage.py documents summarize all > /dev/null
+#         env:
+#           VERBOSE: YES
+#           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+#       - name: Summarize legislative actions
+#         run: poetry run python manage.py legistar summarize all-legislation > /dev/null
+#         env:
+#           VERBOSE: YES
+#           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+#       - name: Summarize upcoming meetings
+#         run: poetry run python manage.py legistar summarize all-meetings > /dev/null
+#         env:
+#           VERBOSE: YES
+#           SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+#       - name: Get finished date/time
+#         run: |
+#           echo "finish_date=$(date +'%Y-%m-%d %H:%M%p %Z')" >> "$GITHUB_ENV"
+#       - name: Commit & Push changes
+#         uses: actions-js/push@master
+#         with:
+#           github_token: ${{ secrets.GITHUB_TOKEN }}
+#           message: "automatic crawl and summarization finished at ${{ env.finish_date }}"
+#         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
+#         # so we'll also explicitly deploy here
+#       - name: Build static site
+#         run: poetry run python manage.py distill-local --force --collectstatic
+#         env:
+#           BASE_URL: https://scc.frontseat.org
+#           DEBUG: NO
+#           SECURE_SSL_REDIRECT: NO
+#           SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
+#           EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+#       - name: Upload artifact to pages
+#         uses: actions/upload-pages-artifact@v1
+#         with:
+#           path: ./dist
 
   # Deployment job
   deploy:
