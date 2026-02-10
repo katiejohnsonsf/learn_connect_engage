@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 from django.template import Context, Template
+from server.lib.summary_cache import get_document_summary_cache
 from server.lib.olmo_client import get_olmo_client
 # from langchain.base_language import BaseLanguageModel
 # from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChain
@@ -273,35 +274,45 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 # Summarizers
 # ---------------------------------------------------------------------
 
-olmo = get_olmo_client()
+from server.lib.summary_cache import get_bill_summary_cache
+from server.lib.olmo_client import get_olmo_client
 
-# For document summarization
-def olmo_document_summarization(document_text: str) -> dict:
-    """Summarize a document using OLMo 3."""
-    # Split into chunks if needed (OLMo has context limits)
-    chunks = split_into_chunks(document_text, max_chunk_size=3000)
+
+def summarize_bill(bill, style='concise', force=False):
+    """
+    Summarize a bill with caching.
     
-    # Summarize each chunk
-    chunk_summaries = []
-    for chunk in chunks:
-        result = olmo.summarize(chunk, style="concise", max_tokens=256)
-        chunk_summaries.append(result['body'])
+    Args:
+        bill: Bill model instance
+        style: Summary style
+        force: Force regeneration even if cached
+        
+    Returns:
+        Dictionary with summary data
+    """
+    cache = get_bill_summary_cache()
+    olmo = get_olmo_client()
     
-    # If multiple chunks, create final summary
-    if len(chunk_summaries) > 1:
-        combined_text = "\n\n".join(chunk_summaries)
-        final_summary = olmo.summarize(
-            combined_text, 
-            style="concise", 
-            max_tokens=512
-        )
-    else:
-        final_summary = {
-            'headline': chunk_summaries[0][:100],  # First 100 chars
-            'body': chunk_summaries[0],
-        }
+    # Combine bill text from various sources
+    bill_text = f"{bill.title}\n\n{bill.description or ''}"
+    if bill.full_text:
+        bill_text += f"\n\n{bill.full_text}"
     
-    return final_summary
+    # Define generator function
+    def generate_summary(text, style):
+        return olmo.summarize(text, style=style, max_tokens=512)
+    
+    # Get or generate with caching
+    summary = cache.get_or_generate(
+        text=bill_text,
+        style=f'olmo-{style}',
+        model_name=olmo.model_name,
+        generator_func=generate_summary,
+        parent_object=bill,
+        force_regenerate=force,
+    )
+    
+    return summary
 
 
 # ---------------------------------------------------------------------
@@ -309,21 +320,21 @@ def olmo_document_summarization(document_text: str) -> dict:
 # ---------------------------------------------------------------------
 
 
-@t.runtime_checkable
-class SummarizerCallable(t.Protocol):
-    __name__: str
+# @t.runtime_checkable
+# class SummarizerCallable(t.Protocol):
+#     __name__: str
 
-    def __call__(
-        self, text: str, context: dict[str, t.Any] | None = None
-    ) -> SummarizationResult:
-        ...
-
-
-SUMMARIZERS: list[SummarizerCallable] = [
-    olmo_document_summarization,
-]
+#     def __call__(
+#         self, text: str, context: dict[str, t.Any] | None = None
+#     ) -> SummarizationResult:
+#         ...
 
 
-SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, SummarizerCallable] = {
-    "concise": olmo_document_summarization,
-}
+# SUMMARIZERS: list[SummarizerCallable] = [
+#     olmo_document_summarization,
+# ]
+
+
+# SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, SummarizerCallable] = {
+#     "concise": olmo_document_summarization,
+# }
