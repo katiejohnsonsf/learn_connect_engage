@@ -84,29 +84,10 @@ class MeetingManager(models.Manager):
             },
         )
         assert isinstance(meeting, Meeting)
-        # Load all the documents, if needed; update the meeting's
-        # documents to match the crawl_data.
+        # Load only legislation-related attachments
+        # Skip agendas, agenda packets, and minutes per user requirements
         documents = []
-        agenda_document, _ = Document.manager.get_or_create_from_url(
-            url=crawl_data.agenda.url,
-            kind=LegistarDocumentKind.AGENDA,
-            title=f"meeting-{crawl_data.id}-agenda",
-        )
-        documents.append(agenda_document)
-        if crawl_data.agenda_packet:
-            agenda_packet_document, _ = Document.manager.get_or_create_from_url(
-                url=crawl_data.agenda_packet.url,
-                kind=LegistarDocumentKind.AGENDA_PACKET,
-                title=f"meeting-{crawl_data.id}-agenda_packet",
-            )
-            documents.append(agenda_packet_document)
-        if crawl_data.minutes:
-            minutes_document, _ = Document.manager.get_or_create_from_url(
-                url=crawl_data.minutes.url,
-                kind=LegistarDocumentKind.MINUTES,
-                title=f"meeting-{crawl_data.id}-minutes",
-            )
-            documents.append(minutes_document)
+        # Only load attachments that are related to legislation
         for attachment in crawl_data.attachments:
             attachment_document, _ = Document.manager.get_or_create_from_url(
                 url=attachment.url,
@@ -230,10 +211,7 @@ class Meeting(models.Model):
     def document_summaries(
         self,
         style: SummarizationStyle,
-        excludes: frozenset[str]
-        | None = frozenset(
-            [LegistarDocumentKind.AGENDA, LegistarDocumentKind.AGENDA_PACKET]
-        ),
+        excludes: frozenset[str] | None = None,
         require: bool = True,
     ) -> t.Iterable[DocumentSummary]:
         """
@@ -512,6 +490,32 @@ class Legislation(models.Model):
         ]
 
 
+def _fetch_action_details_for_legislation(
+    legislation: Legislation,
+) -> list[dict[str, t.Any]] | None:
+    """
+    Fetch individual vote details from Legistar for action rows that have
+    action_details links and a recorded result (i.e., a vote took place).
+    """
+    from .lib.crawler import LegistarCalendarCrawler
+
+    crawl_data = legislation.crawl_data
+    action_details_list = []
+
+    crawler = LegistarCalendarCrawler("seattle")
+
+    for row in crawl_data.rows:
+        if row.action_details is not None and row.result:
+            try:
+                action_data = crawler.get_action_for_legislation_row(row)
+                if action_data is not None:
+                    action_details_list.append(json.loads(action_data.json()))
+            except Exception as e:
+                print(f"    Warning: Could not fetch vote details: {e}")
+
+    return action_details_list if action_details_list else None
+
+
 class LegislationSummaryManager(models.Manager):
     def get_or_create_from_legislation(
         self,
@@ -538,10 +542,19 @@ class LegislationSummaryManager(models.Manager):
             document_summaries = legislation.document_summaries(style)
             document_summary_texts = [ds.body for ds in document_summaries]
 
-            # Invoke the summ565rarizer.
+            # Fetch vote details for Council Bills
+            action_details = None
+            if "Council Bill" in legislation.type:
+                print("  Fetching vote details from Legistar...")
+                action_details = _fetch_action_details_for_legislation(legislation)
+
+            # Invoke the summarizer.
             summarizer = LEGISLATION_SUMMARIZERS_BY_STYLE[style]
             result = summarizer(
-                legislation.title, document_summary_texts=document_summary_texts
+                legislation.title,
+                document_summary_texts=document_summary_texts,
+                legislation_data=legislation.raw_crawl_data,
+                action_details=action_details,
             )
             if isinstance(result, SummarizationSuccess):
                 summary = self.create(
@@ -589,3 +602,35 @@ class LegislationSummary(SummaryBaseModel):
                 name="unique_legislation_summary_for_style",
             ),
         ]
+
+
+class CrawlMetadata(models.Model):
+    """
+    Singleton model that tracks when the last crawl happened.
+    There should only ever be one row in this table (pk=1).
+    """
+
+    last_crawl_at = models.DateTimeField(
+        help_text="When the last crawl completed."
+    )
+
+    class Meta:
+        verbose_name = "Crawl metadata"
+        verbose_name_plural = "Crawl metadata"
+
+    def __str__(self):
+        return f"Last crawl: {self.last_crawl_at}"
+
+    @classmethod
+    def get_instance(cls) -> "CrawlMetadata | None":
+        return cls.objects.first()
+
+    @classmethod
+    def record_crawl(cls) -> "CrawlMetadata":
+        from django.utils import timezone
+
+        instance, _ = cls.objects.update_or_create(
+            pk=1,
+            defaults={"last_crawl_at": timezone.now()},
+        )
+        return instance

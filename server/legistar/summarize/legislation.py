@@ -8,6 +8,12 @@ from server.documents.summarize import (
 from server.lib.style import SummarizationStyle
 from server.lib.truncate import truncate_str
 
+# Import OLMo-based summarizers
+from .olmo_legislation import (
+    summarize_council_bill_structured,
+    summarize_legislation_olmo_concise,
+)
+
 # ---------------------------------------------------------------------
 # Django templates for our LLM prompts
 # ---------------------------------------------------------------------
@@ -57,7 +63,7 @@ def summarize_legislation_gpt35_concise(
 
 
 # ---------------------------------------------------------------------
-# Legislation external utilties
+# Legislation external utilities
 # ---------------------------------------------------------------------
 
 
@@ -66,17 +72,45 @@ class LegislationSummarizerCallable(t.Protocol):
     __name__: str
 
     def __call__(
-        self, title: str, document_summary_texts: list[str]
+        self,
+        title: str,
+        document_summary_texts: list[str],
+        legislation_data: dict[str, t.Any] | None = ...,
+        action_details: list[dict[str, t.Any]] | None = ...,
     ) -> SummarizationResult:
         ...
 
 
+def summarize_legislation_concise_dispatch(
+    title: str,
+    document_summary_texts: list[str],
+    legislation_data: dict[str, t.Any] | None = None,
+    action_details: list[dict[str, t.Any]] | None = None,
+) -> SummarizationResult:
+    """Dispatch to structured summarizer for Council Bills, simple for others."""
+    is_council_bill = (
+        legislation_data is not None
+        and "Council Bill" in legislation_data.get("type", "")
+    )
+    if is_council_bill:
+        return summarize_council_bill_structured(
+            title=title,
+            document_summary_texts=document_summary_texts,
+            legislation_data=legislation_data,
+            action_details=action_details,
+        )
+    return summarize_legislation_olmo_concise(
+        title=title,
+        document_summary_texts=document_summary_texts,
+    )
+
+
 LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
-    summarize_legislation_gpt35_concise,
+    summarize_legislation_concise_dispatch,
 ]
 
 LEGISLATION_SUMMARIZERS_BY_STYLE: dict[
     SummarizationStyle, LegislationSummarizerCallable
 ] = {
-    "concise": summarize_legislation_gpt35_concise,
+    "concise": summarize_legislation_concise_dispatch,
 }
