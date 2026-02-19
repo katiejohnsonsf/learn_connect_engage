@@ -44,14 +44,43 @@ def summarize_meeting_gpt35_concise(
     document_summary_texts: list[str],
     legislation_summary_texts: list[str],
 ) -> SummarizationResult:
-    result = summarize_openai(
-        "\n\n".join(document_summary_texts + legislation_summary_texts),
-        map_template=CONCISE_SUMMARY_TEMPLATE,
-        body_combine_template=MEETING_CONCISE_TEMPLATE,
-        headline_combine_template=MEETING_CONCISE_HEADLINE_TEMPLATE,
-        context=_meeting_template_context(department_name),
-    )
-    return result
+    """Summarize a meeting using OLMo (migration from GPT-3.5)."""
+    from server.lib.olmo_client import get_olmo_client
+    from server.documents.summarize import SummarizationSuccess, SummarizationError
+
+    try:
+        # Combine all summaries
+        all_summaries = document_summary_texts + legislation_summary_texts
+        context = f"Department: {department_name}\n\n"
+        context += "Legislation Items:\n"
+        context += "\n\n".join(f"{i}. {s}" for i, s in enumerate(all_summaries, 1))
+
+        prompt = f"""Summarize this {department_name} meeting agenda:
+
+{context}
+
+Provide a concise summary of the meeting's key items and legislative actions."""
+
+        olmo = get_olmo_client()
+        body = olmo.generate(prompt, max_new_tokens=512, temperature=0.3)
+
+        headline_prompt = (
+            f"Create a brief headline for this {department_name} meeting (under 15 words)"
+        )
+        headline = olmo.generate(headline_prompt, max_new_tokens=30, temperature=0.3)
+
+        return SummarizationSuccess(
+            original_text=context,
+            body=body,
+            headline=headline.strip(),
+            chunks=(context,),
+            chunk_summaries=(body,),
+        )
+    except Exception as e:
+        return SummarizationError(
+            original_text=f"{department_name} meeting",
+            message=f"Meeting summarization failed: {str(e)}",
+        )
 
 
 # ---------------------------------------------------------------------

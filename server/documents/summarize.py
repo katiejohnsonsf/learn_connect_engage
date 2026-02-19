@@ -3,8 +3,9 @@ from dataclasses import dataclass
 
 from django.conf import settings
 from django.template import Context, Template
-from server.lib.summary_cache import get_document_summary_cache
-from server.lib.olmo_client import get_olmo_client
+# Lazy imports to avoid loading model during migrations
+# from server.lib.summary_cache import get_document_summary_cache
+# from server.lib.olmo_client import get_olmo_client
 # from langchain.base_language import BaseLanguageModel
 # from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChain
 # from langchain.chains.combine_documents.stuff import StuffDocumentsChain
@@ -274,22 +275,21 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 # Summarizers
 # ---------------------------------------------------------------------
 
-from server.lib.summary_cache import get_bill_summary_cache
-from server.lib.olmo_client import get_olmo_client
-
-
 def summarize_bill(bill, style='concise', force=False):
     """
     Summarize a bill with caching.
-    
+
     Args:
         bill: Bill model instance
         style: Summary style
         force: Force regeneration even if cached
-        
+
     Returns:
         Dictionary with summary data
     """
+    from server.lib.summary_cache import get_bill_summary_cache
+    from server.lib.olmo_client import get_olmo_client
+
     cache = get_bill_summary_cache()
     olmo = get_olmo_client()
     
@@ -320,21 +320,103 @@ def summarize_bill(bill, style='concise', force=False):
 # ---------------------------------------------------------------------
 
 
-# @t.runtime_checkable
-# class SummarizerCallable(t.Protocol):
-#     __name__: str
+@dataclass(frozen=True)
+class SummarizationResultBase:
+    original_text: str
+    """The original text that was summarized."""
 
-#     def __call__(
-#         self, text: str, context: dict[str, t.Any] | None = None
-#     ) -> SummarizationResult:
-#         ...
-
-
-# SUMMARIZERS: list[SummarizerCallable] = [
-#     olmo_document_summarization,
-# ]
+    @property
+    def success(self) -> bool:
+        return isinstance(self, SummarizationSuccess)
 
 
-# SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, SummarizerCallable] = {
-#     "concise": olmo_document_summarization,
-# }
+@dataclass(frozen=True)
+class SummarizationError(SummarizationResultBase):
+    """An error that occurred while summarizing a text."""
+
+    message: str
+    """A human-readable error message."""
+
+
+@dataclass(frozen=True)
+class SummarizationSuccess(SummarizationResultBase):
+    """The result of summarizing a text."""
+
+    body: str
+    """A detailed summary of the text."""
+
+    headline: str
+    """A brief summary of the text."""
+
+    chunks: tuple[str, ...]
+    """Text chunks sent to the LLM for summarization."""
+
+    chunk_summaries: tuple[str, ...]
+    """LLM outputs for each text chunk."""
+
+
+# For the functional programming nerds in the house, here's our Either type. :-)
+SummarizationResult: t.TypeAlias = SummarizationError | SummarizationSuccess
+
+
+def olmo_document_summarization(
+    text: str, context: dict[str, t.Any] | None = None
+) -> SummarizationResult:
+    """Summarize text using OLMo."""
+    from server.lib.olmo_client import get_olmo_client
+
+    if not text.strip():
+        return SummarizationError(original_text=text, message="Text was empty.")
+
+    try:
+        olmo = get_olmo_client()
+        result = olmo.summarize(text, style='concise', max_tokens=512)
+
+        return SummarizationSuccess(
+            original_text=text,
+            body=result.get('body', ''),
+            headline=result.get('headline', result.get('body', '')[:100]),
+            chunks=(text,),
+            chunk_summaries=(result.get('body', ''),),
+        )
+    except Exception as e:
+        return SummarizationError(original_text=text, message=str(e))
+
+
+def summarize_openai(
+    text: str,
+    map_template: str,
+    body_combine_template: str,
+    headline_combine_template: str,
+    context: dict[str, t.Any] | None = None,
+    model_name: str = "gpt-3.5-turbo",
+    temperature: float = 0.4,
+    chunk_size: int = 3584,
+) -> SummarizationResult:
+    """
+    Stub for OpenAI summarization - currently using OLMo instead.
+
+    This maintains API compatibility while the codebase migrates to OLMo.
+    """
+    # For now, delegate to OLMo-based summarization
+    return olmo_document_summarization(text, context)
+
+
+@t.runtime_checkable
+class SummarizerCallable(t.Protocol):
+    __name__: str
+
+    def __call__(
+        self, text: str, context: dict[str, t.Any] | None = None
+    ) -> SummarizationResult:
+        ...
+
+
+SUMMARIZERS: list[SummarizerCallable] = [
+    olmo_document_summarization,
+]
+
+
+SUMMARIZERS_BY_STYLE: dict[str, SummarizerCallable] = {
+    "concise": olmo_document_summarization,
+}

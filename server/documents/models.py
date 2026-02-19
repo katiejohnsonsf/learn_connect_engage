@@ -257,8 +257,8 @@ class DocumentSummary(SummaryBaseModel):
     style = models.CharField(max_length=100)
     headline = models.TextField()
     body = models.TextField()
-    model = models.CharField(max_length=255)  # Model name
-    content_hash = models.CharField(max_length=64, db_index=True)  # NEW
+    model = models.CharField(max_length=255, default='olmo-concise')  # Model name
+    content_hash = models.CharField(max_length=64, db_index=True, default='')  # Content hash
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
