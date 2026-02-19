@@ -400,6 +400,16 @@ a.view-link:hover {
   color: #3730A3;
 }
 
+.title .data-source {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+.title .data-source a {
+  color: #4F46E5;
+}
+
 
 /** Breadcrumbs **/
 
@@ -433,6 +443,134 @@ a.view-link:hover {
   padding: 0 0.5rem;
 }
 
+
+/* Crawl watermark */
+.crawl-watermark {
+  opacity: 0.45;
+  font-size: 0.8rem;
+  line-height: 1.3rem;
+  color: #666;
+  margin-bottom: 2rem;
+  padding: 0.75rem 1rem;
+  background: #eee;
+  border-radius: 6px;
+}
+
+.crawl-watermark p {
+  margin: 0;
+}
+
+.crawl-watermark a {
+  color: #666;
+}
+
+/* Bill entry cards */
+.bill-entry {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+h4.action-type {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4F46E5;
+  padding-bottom: 0.5rem;
+}
+
+.bill-entry .bill-meta {
+  font-size: 0.9rem;
+  color: #666;
+  padding-bottom: 0.25rem;
+}
+
+.bill-entry time {
+  display: block;
+  padding-bottom: 0.25rem;
+}
+
+.bill-entry .bill-committee {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #555;
+  padding-bottom: 0.75rem;
+}
+
+.bill-entry .content {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.bill-entry .content p {
+  font-size: 1.1rem;
+  line-height: 1.7rem;
+  padding-bottom: 0.75rem;
+}
+
+.bill-entry .content h2 {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  color: #121212;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Accordion for informational legislation */
+.bill-accordion {
+  margin-top: 0.25rem;
+}
+
+.bill-accordion summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bill-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.bill-accordion summary .accordion-title {
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.bill-accordion summary::after {
+  content: '\25B6';
+  margin-left: 0.75rem;
+  font-size: 0.75rem;
+  color: #4F46E5;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.bill-accordion[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.bill-accordion .accordion-body {
+  padding-top: 0.75rem;
+}
+
+/* Next update section */
+.next-update {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: #eee;
+  border-radius: 8px;
+}
+
+.next-update p {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #3730A3;
+}
 
 .hidden {
   display: none;

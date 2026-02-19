@@ -17,6 +17,7 @@ from server.legistar.lib import (
     MeetingCrawlData,
 )
 from server.legistar.models import (
+    CrawlMetadata,
     Legislation,
     LegislationSummary,
     Meeting,
@@ -469,6 +470,8 @@ def crawl_calendar(
     for item in crawler.crawl():
         _echo_response(item, lines)
         _update_db(item)
+
+    CrawlMetadata.record_crawl()
 
 
 # -----------------------------------------------------------------------------

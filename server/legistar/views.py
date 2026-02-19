@@ -1,5 +1,6 @@
 import datetime
 
+from django.conf import settings
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html_join
@@ -9,7 +10,9 @@ from server.documents.models import Document, DocumentSummary
 from server.lib.style import SUMMARIZATION_STYLES, SummarizationStyle
 from server.lib.truncate import truncate_str
 
-from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
+from .models import CrawlMetadata, Legislation, LegislationSummary, Meeting, MeetingSummary
+
+_SUMMARY_PENDING = "Summary pending\u2026"
 
 # ------------------------------------------------------------------------
 # Utilities for cleaning up text summaries and generating HTML
@@ -25,6 +28,34 @@ def _text_to_html_paragraphs(text: str):
     """Convert text, with newlines, to simple runs of HTML paragraphs."""
     splits = [s.strip() for s in text.split("\n")]
     return format_html_join("\n", "<p>{}</p>", ((s,) for s in splits if s))
+
+
+_STRUCTURED_SECTION_HEADERS = {
+    "WHAT WAS ORIGINALLY PROPOSED": "Clear 2-3 sentence summary",
+    "AMENDMENTS AND VOTES": "Council member vote breakdown",
+    "WHAT THE FINAL TEXT DOES": "3-4 sentence summary",
+    "WHAT CHANGED FROM THE ORIGINAL": "Differences from the original proposal",
+}
+
+
+def _structured_summary_to_html(text: str):
+    """Convert a structured summary with section headers into HTML."""
+    from django.utils.html import format_html
+
+    lines = [s.strip() for s in text.split("\n")]
+    html_parts = []
+    for line in lines:
+        if not line:
+            continue
+        if line in _STRUCTURED_SECTION_HEADERS:
+            desc = _STRUCTURED_SECTION_HEADERS[line]
+            html_parts.append(format_html(
+                '<h2 style="font-weight:700">{} <small style="font-weight:normal;color:#666">({})</small></h2>',
+                line.title(), desc,
+            ))
+        else:
+            html_parts.append(format_html("<p>{}</p>", line))
+    return "\n".join(html_parts)
 
 
 def _remove_surrounding_quotes(text: str):
@@ -53,12 +84,14 @@ def _legislation_table_context(
     Build context data for the given `legislation`; this is used in our
     HTML templates that display a table of legislation instances.
     """
-    summary = get_object_or_404(
-        LegislationSummary,
-        legislation=legislation,
-        style=style,
+    summary = LegislationSummary.objects.filter(
+        legislation=legislation, style=style
+    ).first()
+    clean_headline = (
+        _remove_surrounding_quotes(summary.headline)
+        if summary
+        else _SUMMARY_PENDING
     )
-    clean_headline = _remove_surrounding_quotes(summary.headline)
     return {
         "legistar_id": legislation.legistar_id,
         "url": legislation.url,
@@ -68,6 +101,7 @@ def _legislation_table_context(
         "kind": legislation.kind,
         "headline": clean_headline,
         "truncated_headline": truncate_str(clean_headline, 24),
+        "summary_pending": summary is None,
     }
 
 
@@ -94,37 +128,66 @@ def _meeting_context(meeting: Meeting, style: SummarizationStyle) -> dict:
     Build context data for a `meeting`; this is used in our HTML templates
     that display detailed information about a single `Meeting` instance.
     """
-    if meeting.is_active:
-        summary = get_object_or_404(MeetingSummary, meeting=meeting, style=style)
-        clean_headline = _remove_surrounding_quotes(summary.headline)
-        skip = "unable to summarize" in clean_headline.lower()
+    base = {
+        "legistar_id": meeting.legistar_id,
+        "url": meeting.url,
+        "date": meeting.date,
+        "time": meeting.time,
+        "location": meeting.location,
+        "department": meeting.crawl_data.department,
+    }
+    if not meeting.is_active:
+        return {**base, "is_active": False}
+
+    summary = MeetingSummary.objects.filter(meeting=meeting, style=style).first()
+    if summary is None:
+        # Summary pending — show meeting without AI summary yet
+        legislation_table_contexts = []
+        for legislation in meeting.legislations:
+            leg_summary = LegislationSummary.objects.filter(
+                legislation=legislation, style=style
+            ).first()
+            if leg_summary:
+                legislation_table_contexts.append(
+                    _legislation_table_context(legislation, style)
+                )
         return {
+            **base,
             "is_active": True,
-            "skip": skip,
-            "legistar_id": meeting.legistar_id,
-            "url": meeting.url,
-            "date": meeting.date,
-            "time": meeting.time,
-            "location": meeting.location,
-            "department": meeting.crawl_data.department,
-            "headline": clean_headline,
-            "truncated_headline": truncate_str(clean_headline, 24),
-            "summary": _text_to_html_paragraphs(summary.body),
-            "legislation_table_contexts": [
-                _legislation_table_context(legislation, style)
-                for legislation in meeting.legislations
-            ],
+            "skip": False,
+            "summary_pending": True,
+            "headline": _SUMMARY_PENDING,
+            "truncated_headline": _SUMMARY_PENDING,
+            "summary": _text_to_html_paragraphs("Summaries are being generated."),
+            "legislation_table_contexts": legislation_table_contexts,
         }
-    else:
-        return {
-            "is_active": False,
-            "legistar_id": meeting.legistar_id,
-            "url": meeting.url,
-            "date": meeting.date,
-            "time": meeting.time,
-            "location": meeting.location,
-            "department": meeting.crawl_data.department,
-        }
+
+    clean_headline = _remove_surrounding_quotes(summary.headline)
+    skip = "unable to summarize" in clean_headline.lower()
+    legislation_contexts = [
+        _legislation_context(legislation, style)
+        for legislation in meeting.legislations
+        if LegislationSummary.objects.filter(
+            legislation=legislation, style=style
+        ).exists()
+    ]
+    return {
+        **base,
+        "is_active": True,
+        "skip": skip,
+        "summary_pending": False,
+        "headline": clean_headline,
+        "truncated_headline": truncate_str(clean_headline, 24),
+        "summary": _text_to_html_paragraphs(summary.body),
+        "legislation_table_contexts": [
+            _legislation_table_context(legislation, style)
+            for legislation in meeting.legislations
+            if LegislationSummary.objects.filter(
+                legislation=legislation, style=style
+            ).exists()
+        ],
+        "legislation_contexts": legislation_contexts,
+    }
 
 
 def _legislation_context(legislation: Legislation, style: SummarizationStyle) -> dict:
@@ -133,9 +196,22 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
     templates that display detailed information about a single `Legislation`
     instance.
     """
-    summary = get_object_or_404(
-        LegislationSummary, legislation=legislation, style=style
+    summary = LegislationSummary.objects.filter(
+        legislation=legislation, style=style
+    ).first()
+    headline = (
+        _remove_surrounding_quotes(summary.headline)
+        if summary
+        else _SUMMARY_PENDING
     )
+    body = summary.body if summary else "This summary is being generated."
+
+    # Use structured rendering for Council Bill summaries with section headers
+    if summary and "WHAT WAS ORIGINALLY PROPOSED" in body:
+        rendered_summary = _structured_summary_to_html(body)
+    else:
+        rendered_summary = _text_to_html_paragraphs(body)
+
     return {
         "legistar_id": legislation.legistar_id,
         "url": legislation.url,
@@ -143,11 +219,13 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
         "truncated_title": legislation.truncated_title,
         "type": legislation.type,
         "kind": legislation.kind,
-        "headline": _remove_surrounding_quotes(summary.headline),
-        "summary": _text_to_html_paragraphs(summary.body),
+        "headline": headline,
+        "summary_pending": summary is None,
+        "summary": rendered_summary,
         "document_table_contexts": [
             _document_table_context(document, style)
             for document in legislation.documents.all()
+            if DocumentSummary.objects.filter(document=document, style=style).exists()
         ],
     }
 
@@ -270,15 +348,80 @@ def distill_documents():
 
 @require_GET
 def calendar(request, style: str):
-    """Render the calendar page for a given `style`."""
+    """Render the calendar page as a bill-centric view."""
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
-    meetings = Meeting.manager.future(relative_to=_get_relative_to()).order_by("-date")
-    meeting_contexts = [_meeting_context(m, style) for m in meetings]
+
+    # Get all active meetings (no past cutoff — include all crawled data)
+    meetings = Meeting.manager.active().order_by("-date")
+
+    # Build a flat list of bill entries: one per (legislation, meeting) pair
+    bill_entries = []
+    seen = set()  # avoid duplicates if a bill appears in multiple meetings
+    for meeting in meetings:
+        for legislation in meeting.legislations:
+            key = (legislation.pk, meeting.pk)
+            if key in seen:
+                continue
+            seen.add(key)
+            if not LegislationSummary.objects.filter(
+                legislation=legislation, style=style
+            ).exists():
+                continue
+            leg_context = _legislation_context(legislation, style)
+            kind = leg_context["kind"]
+            leg_context["summary"] = leg_context["summary"].replace("*", "")
+            bill_entries.append({
+                "legislation": leg_context,
+                "meeting_date": meeting.date,
+                "day_of_week": meeting.date.strftime("%A"),
+                "committee": meeting.crawl_data.department.name,
+                "meeting_id": meeting.legistar_id,
+                "is_council_bill": "Council Bill" in kind,
+                "is_informational": kind == "Informational",
+            })
+
+    # Sort by meeting date descending (newest first)
+    bill_entries.sort(key=lambda e: e["meeting_date"], reverse=True)
+
+    # Compute date range
+    if bill_entries:
+        date_range_start = min(e["meeting_date"] for e in bill_entries)
+        date_range_end = max(e["meeting_date"] for e in bill_entries)
+    else:
+        date_range_start = None
+        date_range_end = None
+
+    # Crawl metadata
+    crawl_meta = CrawlMetadata.get_instance()
+    last_crawl_at = crawl_meta.last_crawl_at if crawl_meta else None
+    if last_crawl_at:
+        # Parse CRAWL_TIME (e.g. "01:30") and compute next crawl
+        crawl_h, crawl_m = (int(x) for x in settings.CRAWL_TIME.split(":"))
+        next_crawl_at = last_crawl_at + datetime.timedelta(
+            days=settings.CRAWL_INTERVAL_DAYS
+        )
+        next_crawl_at = next_crawl_at.replace(hour=crawl_h, minute=crawl_m, second=0)
+        from django.utils import timezone
+        now = timezone.now()
+        next_crawl_delta_days = (next_crawl_at - now).days
+    else:
+        next_crawl_at = None
+        next_crawl_delta_days = None
+
     return render(
         request,
         "calendar.dhtml",
-        {"style": style, "meeting_contexts": meeting_contexts},
+        {
+            "style": style,
+            "bill_entries": bill_entries,
+            "date_range_start": date_range_start,
+            "date_range_end": date_range_end,
+            "data_source_date": last_crawl_at or datetime.date.today(),
+            "last_crawl_at": last_crawl_at,
+            "next_crawl_at": next_crawl_at,
+            "next_crawl_delta_days": next_crawl_delta_days,
+        },
     )
 
 

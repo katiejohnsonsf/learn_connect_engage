@@ -8,29 +8,15 @@
     </div>
     <div class="content">{{ meeting_context.summary | safe }}</div>
     <h2>Meeting Agenda</h2>
-    <div>
-      <table>
-        <thead>
-          <tr>
-            <th>Kind</th>
-            <th>Headline</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for legislation_t_ctx in meeting_context.legislation_table_contexts %}
-            <tr>
-              <td>{{ legislation_t_ctx.kind }}</td>
-              <td>{{ legislation_t_ctx.headline }}</td>
-              <td>
-                <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_t_ctx.legistar_id style=style %}"
-                   class="view-link">View&nbsp;→</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% for leg_ctx in meeting_context.legislation_contexts %}
+      <section class="legislation-detail" style="margin-bottom: 2em; padding: 1em; border: 1px solid #ddd; border-radius: 4px;">
+        <h2 style="margin-top: 0;">
+          <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=leg_ctx.legistar_id style=style %}">{{ leg_ctx.headline }}</a>
+        </h2>
+        <p style="color: #666; margin-top: -0.5em;">{{ leg_ctx.kind }} &mdash; {{ leg_ctx.truncated_title }}</p>
+        <div class="content">{{ leg_ctx.summary | safe }}</div>
+      </section>
+    {% endfor %}
     <a href="{{ meeting_context.url }}"
        class="more-link space secondary"
        target="_blank">Visit meeting on legistar →</a>

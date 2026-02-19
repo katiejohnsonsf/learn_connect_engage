@@ -6,7 +6,7 @@
     <meta name="keywords"
           content="Upcoming meetings of the Seattle City Council.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Upcoming at the Seattle City Council</title>
+    <title>{% block page_title %}Upcoming at the Seattle City Council{% endblock page_title %}</title>
     <meta name="description"
           content="A simple HTML5 Template for new projects.">
     <meta name="author" content="Dave Peck">

@@ -1,6 +1,11 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # The root of all baked data
@@ -122,6 +127,14 @@ STATIC_ROOT = "/tmp/engage-static/"
 # We bake data directly into the image, so we don't need to collect
 MEDIA_ROOT = str(DATA_DIR / "media")
 MEDIA_URL = "media/"
+
+
+# --------------------------------------------------------------------
+# Crawl schedule configuration
+# --------------------------------------------------------------------
+
+CRAWL_INTERVAL_DAYS = int(os.environ.get("CRAWL_INTERVAL_DAYS", "7"))
+CRAWL_TIME = os.environ.get("CRAWL_TIME", "01:30")
 
 
 # --------------------------------------------------------------------
