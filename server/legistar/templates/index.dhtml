@@ -12,7 +12,7 @@
     <meta name="author" content="Dave Peck">
     <meta property="og:title" content="Upcoming at the Seattle City Council">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://scc.frontseat.org/">
+    <meta property="og:url" content="https://katiejohnsonsf.github.io/informed_seattle/">
     <meta property="og:description"
           content="Brief summaries of all upcoming meetings of the Seattle City Council.">
     <meta property="og:image" content="{% static 'scc-logo.png' %}">

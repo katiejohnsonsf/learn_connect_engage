@@ -58,7 +58,7 @@ jobs:
       - name: Build static site
         run: poetry run python manage.py distill-local --force --collectstatic
         env:
-          BASE_URL: https://scc.frontseat.org
+          BASE_URL: https://katiejohnsonsf.github.io/informed_seattle
           DEBUG: NO
           SECURE_SSL_REDIRECT: NO
           SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
