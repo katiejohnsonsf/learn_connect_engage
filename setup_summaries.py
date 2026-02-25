@@ -78,6 +78,41 @@ def summarize_all_documents():
 
     print()
 
+_FAILED_HEADLINE = "Unable to summarize (see logs)"
+
+
+def clear_failed_summaries():
+    """Delete failed legislation and meeting summaries so they get retried."""
+    print("=" * 80)
+    print("STEP 2.5: Clearing failed summaries for retry")
+    print("=" * 80)
+
+    failed_leg = LegislationSummary.objects.filter(headline=_FAILED_HEADLINE)
+    leg_count = failed_leg.count()
+    if leg_count:
+        # Also clear dependent meeting summaries before deleting legislation summaries
+        for leg_summary in failed_leg:
+            meetings = Meeting.objects.filter(
+                legislations=leg_summary.legislation, time__isnull=False
+            )
+            for meeting in meetings:
+                deleted = MeetingSummary.objects.filter(meeting=meeting).delete()
+                if deleted[0] > 0:
+                    print(f"  Cleared meeting summary for meeting {meeting.legistar_id}")
+        failed_leg.delete()
+        print(f"Cleared {leg_count} failed legislation summaries for retry")
+    else:
+        print("No failed legislation summaries found")
+
+    failed_meet = MeetingSummary.objects.filter(headline=_FAILED_HEADLINE)
+    meet_count = failed_meet.count()
+    if meet_count:
+        failed_meet.delete()
+        print(f"Cleared {meet_count} failed meeting summaries for retry")
+
+    print()
+
+
 def clear_council_bill_summaries():
     """Delete existing Council Bill summaries so they get regenerated with structured format."""
     print("=" * 80)
@@ -216,6 +251,7 @@ def main():
     try:
         extract_all_documents()
         summarize_all_documents()
+        clear_failed_summaries()
         clear_council_bill_summaries()
         summarize_all_legislation()
         summarize_all_meetings()
