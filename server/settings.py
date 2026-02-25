@@ -121,7 +121,7 @@ OPENAI_ORGANIZATION = os.environ.get("OPENAI_ORGANIZATION")
 # Static & Media files
 # --------------------------------------------------------------------
 
-STATIC_URL = "static/"
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 STATIC_ROOT = "/tmp/engage-static/"
 
 # We bake data directly into the image, so we don't need to collect

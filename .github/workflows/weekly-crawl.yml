@@ -64,7 +64,8 @@ jobs:
         shell: micromamba-shell {0}
         run: python manage.py distill-local --force --collectstatic
         env:
-          BASE_URL: https://katiejohnsonsf.github.io/informed_seattle
+          BASE_URL: https://katiejohnsonsf.github.io/Informed_Seattle
+          STATIC_URL: /Informed_Seattle/static/
           DEBUG: NO
           SECURE_SSL_REDIRECT: NO
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
