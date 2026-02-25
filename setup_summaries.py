@@ -90,12 +90,11 @@ def clear_failed_summaries():
     failed_leg = LegislationSummary.objects.filter(headline=_FAILED_HEADLINE)
     leg_count = failed_leg.count()
     if leg_count:
-        # Also clear dependent meeting summaries before deleting legislation summaries
-        for leg_summary in failed_leg:
-            meetings = Meeting.objects.filter(
-                legislations=leg_summary.legislation, time__isnull=False
-            )
-            for meeting in meetings:
+        # Collect IDs of legislation with failed summaries
+        failed_leg_ids = set(failed_leg.values_list("legislation_id", flat=True))
+        # Meeting.legislations is a property (not a real FK), so iterate all meetings
+        for meeting in Meeting.objects.filter(time__isnull=False):
+            if any(leg.id in failed_leg_ids for leg in meeting.legislations):
                 deleted = MeetingSummary.objects.filter(meeting=meeting).delete()
                 if deleted[0] > 0:
                     print(f"  Cleared meeting summary for meeting {meeting.legistar_id}")
