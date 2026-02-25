@@ -95,7 +95,8 @@ class MeetingSummarizerCallable(t.Protocol):
         department_name: str,
         document_summary_texts: list[str],
         legislation_summary_texts: list[str],
-    ) -> SummarizationResult: ...
+    ) -> SummarizationResult:
+        ...
 
 
 MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [

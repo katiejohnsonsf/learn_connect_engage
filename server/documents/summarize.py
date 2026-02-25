@@ -410,7 +410,8 @@ class SummarizerCallable(t.Protocol):
 
     def __call__(
         self, text: str, context: dict[str, t.Any] | None = None
-    ) -> SummarizationResult: ...
+    ) -> SummarizationResult:
+        ...
 
 
 SUMMARIZERS: list[SummarizerCallable] = [
