@@ -121,19 +121,20 @@
 
         {% if entry.legislation.district_votes_json != "[]" %}
         <div class="bill-vote-map">
-          <div class="bill-map-canvas"
-               data-votes="{{ entry.legislation.district_votes_json }}"
-               aria-label="Seattle council district vote map"></div>
           {% if entry.legislation.at_large_votes %}
           <div class="bill-vote-at-large">
             <span class="at-large-label">At-large</span>
             {% for v in entry.legislation.at_large_votes %}
               <span class="at-large-vote {% if v.in_favor %}vote-yes{% elif v.opposed %}vote-no{% else %}vote-absent{% endif %}">
+                <span class="at-large-pos">Pos. {{ v.district }}</span>
                 {{ v.name }}&thinsp;&mdash;&thinsp;{{ v.vote }}
               </span>
             {% endfor %}
           </div>
           {% endif %}
+          <div class="bill-map-canvas"
+               data-votes="{{ entry.legislation.district_votes_json }}"
+               aria-label="Seattle council district vote map"></div>
         </div>
         {% endif %}
 

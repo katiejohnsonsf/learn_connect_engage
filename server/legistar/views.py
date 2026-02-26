@@ -26,19 +26,20 @@ _FULL_COUNCIL_BODIES = frozenset(
     {"full council", "seattle city council", "city council"}
 )
 
-# Seattle City Council member → district mapping (update after each election).
-# Districts 1-7 are geographic; "at-large" = Positions 8 & 9 (citywide).
-# Names must match what Legistar stores (lowercased for lookup).
-_COUNCIL_DISTRICTS: dict[str, int | str] = {
-    "rob saka": 1,
-    "tammy morales": 2,
-    "joy hollingsworth": 3,
-    "ron davis": 4,
-    "cathy moore": 5,
-    "dan strauss": 6,
-    "bob kettle": 7,
-    "tanya woo": "at-large",
-    "sara nelson": "at-large",
+# Seattle City Council member → seat mapping (update after each election).
+# Districts 1-7 are geographic; 8 = Position 8 at-large, 9 = Position 9 at-large.
+# Names must match exactly what Legistar stores (lowercased for lookup).
+# Last updated: 2025-2026 council seated after November 2025 elections.
+_COUNCIL_DISTRICTS: dict[str, int] = {
+    "rob saka": 1,           # District 1
+    "eddie lin": 2,           # District 2
+    "joy hollingsworth": 3,   # District 3
+    "maritza rivera": 4,      # District 4
+    "debora juarez": 5,       # District 5 (appointed July 2025)
+    "dan strauss": 6,         # District 6
+    "robert kettle": 7,       # District 7
+    "alexis mercedes rinck": 8,  # Position 8 — At-Large
+    "dionne foster": 9,          # Position 9 — At-Large
 }
 
 _NAME_PREFIXES = ("councilmember ", "council member ", "cm ", "councilmember. ")
@@ -77,6 +78,11 @@ def _vote_rows_from_entry(entry: dict) -> list[dict]:
     return entry.get("action", {}).get("rows", [])
 
 
+def _is_district_seat(district) -> bool:
+    """Return True for geographic district seats (1-7), False for at-large (8-9) or unknown."""
+    return isinstance(district, int) and district <= 7
+
+
 def _extract_district_votes(legislation) -> tuple[list[dict], list[dict]]:
     """
     Return (district_votes, at_large_votes) from stored vote_data.
@@ -97,9 +103,11 @@ def _extract_district_votes(legislation) -> tuple[list[dict], list[dict]]:
             seen.add(name)
             district = _COUNCIL_DISTRICTS.get(_normalize_member_name(name))
             item = {"name": name, "vote": vote_str, "district": district, **_classify_vote(vote_str)}
-            (district_votes if isinstance(district, int) else at_large_votes).append(item)
+            (district_votes if _is_district_seat(district) else at_large_votes).append(item)
 
-    district_votes.sort(key=lambda v: v["district"] if isinstance(v["district"], int) else 99)
+    _seat_order = lambda v: v["district"] if isinstance(v["district"], int) else 99  # noqa: E731
+    district_votes.sort(key=_seat_order)
+    at_large_votes.sort(key=_seat_order)
     return district_votes, at_large_votes
 
 

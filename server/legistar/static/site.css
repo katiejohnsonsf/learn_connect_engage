@@ -674,13 +674,13 @@ h4.action-type {
   background: #f3f4f6;
 }
 
-/* At-large member vote row */
+/* At-large member vote row (displayed above the map) */
 .bill-vote-at-large {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .at-large-label {
@@ -714,6 +714,51 @@ h4.action-type {
   background-color: #f3f4f6;
   color: #4b5563;
 }
+
+.at-large-pos {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.65;
+  margin-right: 0.2em;
+}
+
+/* ---- Vote map hover popup ---- */
+
+.vote-popup .maplibregl-popup-content {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  line-height: 1.4;
+}
+
+.vp-district {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.15rem;
+}
+
+.vp-name {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.15rem;
+}
+
+.vp-vote {
+  font-weight: 500;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.vp-yes  { background: #dcfce7; color: #166534; }
+.vp-no   { background: #fee2e2; color: #991b1b; }
+.vp-absent { background: #f3f4f6; color: #4b5563; }
 
 
 /* ---- Full-viewport intro panel ---- */

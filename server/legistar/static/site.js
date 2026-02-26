@@ -44,97 +44,126 @@ function listenForKeyboardEvents(event) {
 
 // ---- Council vote maps --------------------------------------------------------
 //
-// Initialises a MapLibre GL map inside each .bill-map-canvas element.
-// District GeoJSON (seattleio/seattle-boundaries-data) is fetched once and
-// reused for every map on the page.
+// Interactive MapLibre GL choropleth — one per Council Bill.
+// Districts 1-7 colored by vote; hover to see member name + vote.
+// At-large members (Pos. 8-9) rendered as HTML badges above the map.
 //
-// Color key: green = In Favor, red = No/Against/Opposed, gray = Absent/Excused,
-//             light gray = district rep not found in data.
-//
-// At-large member votes are already rendered as HTML badges in the template;
-// this code only handles the choropleth map.
+// Color key: green = In Favor, red = No/Against/Opposed, gray = Absent/Excused.
 
 var DISTRICT_GEOJSON_URL =
   "https://raw.githubusercontent.com/seattleio/seattle-boundaries-data/master/data/city-council-districts.geojson";
-
 var MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+var VOTE_COLORS = { yes: "#16a34a", no: "#dc2626", absent: "#9ca3af", unknown: "#e5e7eb" };
 
-var VOTE_COLORS = {
-  yes:     "#16a34a",
-  no:      "#dc2626",
-  absent:  "#9ca3af",
-  unknown: "#e5e7eb",
-};
-
-function voteColor(voteInfo) {
-  if (!voteInfo) return VOTE_COLORS.unknown;
-  if (voteInfo.in_favor)  return VOTE_COLORS.yes;
-  if (voteInfo.opposed)   return VOTE_COLORS.no;
-  if (voteInfo.absent)    return VOTE_COLORS.absent;
+function voteColor(v) {
+  if (!v) return VOTE_COLORS.unknown;
+  if (v.in_favor) return VOTE_COLORS.yes;
+  if (v.opposed)  return VOTE_COLORS.no;
+  if (v.absent)   return VOTE_COLORS.absent;
   return VOTE_COLORS.unknown;
 }
 
-function buildDistrictColorExpression(votesByDistrict) {
-  // MapLibre "match" expression: ['match', ['get', 'district'], 1, color, 2, color, ..., fallback]
+function buildColorExpr(byDistrict) {
   var expr = ["match", ["get", "district"]];
-  for (var d = 1; d <= 7; d++) {
-    expr.push(d, voteColor(votesByDistrict[d]));
-  }
-  expr.push(VOTE_COLORS.unknown); // fallback
+  for (var d = 1; d <= 7; d++) expr.push(d, voteColor(byDistrict[d]));
+  expr.push(VOTE_COLORS.unknown);
   return expr;
 }
 
-function initBillMap(canvas, geojson) {
+function computeBounds(geojson) {
+  var w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  geojson.features.forEach(function (f) {
+    var rings = f.geometry.type === "MultiPolygon"
+      ? f.geometry.coordinates.reduce(function (a, p) { return a.concat(p[0]); }, [])
+      : f.geometry.coordinates[0];
+    rings.forEach(function (c) {
+      if (c[0] < w) w = c[0]; if (c[1] < s) s = c[1];
+      if (c[0] > e) e = c[0]; if (c[1] > n) n = c[1];
+    });
+  });
+  return [[w, s], [e, n]];
+}
+
+function enrichGeoJSON(geojson, byDistrict) {
+  return {
+    type: "FeatureCollection",
+    features: geojson.features.map(function (f) {
+      var d = f.properties.district;
+      var v = byDistrict[d];
+      var vtype = v ? (v.in_favor ? "yes" : v.opposed ? "no" : v.absent ? "absent" : "unknown") : "unknown";
+      return Object.assign({}, f, {
+        id: d,
+        properties: Object.assign({}, f.properties, {
+          member_name: v ? v.name : "",
+          vote_text: v ? v.vote : "",
+          vote_type: vtype,
+        }),
+      });
+    }),
+  };
+}
+
+function initBillMap(canvas, baseGeoJSON) {
   var votes;
-  try {
-    votes = JSON.parse(canvas.dataset.votes || "[]");
-  } catch (e) {
-    return;
-  }
+  try { votes = JSON.parse(canvas.dataset.votes || "[]"); } catch (e) { return; }
   if (!votes.length) return;
 
-  // Index votes by district number
-  var votesByDistrict = {};
-  votes.forEach(function (v) {
-    if (typeof v.district === "number") {
-      votesByDistrict[v.district] = v;
-    }
-  });
+  var byDistrict = {};
+  votes.forEach(function (v) { if (typeof v.district === "number") byDistrict[v.district] = v; });
 
-  // Compute a tight bounding box for Seattle districts (~47.48,-122.46 to 47.74,-122.22)
+  var geojson = enrichGeoJSON(baseGeoJSON, byDistrict);
+  var bounds  = computeBounds(geojson);
+
   var map = new maplibregl.Map({
     container: canvas,
     style: MAP_STYLE,
-    center: [-122.335, 47.608],
-    zoom: 9.8,
-    interactive: false,
+    bounds: bounds,
+    fitBoundsOptions: { padding: 18, animate: false },
     attributionControl: false,
   });
 
-  map.on("load", function () {
-    map.addSource("districts", { type: "geojson", data: geojson });
+  var popup = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    className: "vote-popup",
+    offset: 8,
+  });
+  var hoveredId = null;
 
+  map.on("load", function () {
+    map.addSource("districts", { type: "geojson", data: geojson, generateId: false });
+
+    // Colored district fills
     map.addLayer({
       id: "district-fills",
       type: "fill",
       source: "districts",
       paint: {
-        "fill-color": buildDistrictColorExpression(votesByDistrict),
-        "fill-opacity": 0.65,
+        "fill-color": buildColorExpr(byDistrict),
+        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.85, 0.60],
       },
     });
 
+    // Hover darkening overlay
+    map.addLayer({
+      id: "district-hover",
+      type: "fill",
+      source: "districts",
+      paint: {
+        "fill-color": "#000",
+        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.12, 0],
+      },
+    });
+
+    // District outlines
     map.addLayer({
       id: "district-outlines",
       type: "line",
       source: "districts",
-      paint: {
-        "line-color": "#ffffff",
-        "line-width": 1.5,
-      },
+      paint: { "line-color": "#fff", "line-width": 1.5 },
     });
 
-    // Small district-number labels
+    // District number labels
     map.addLayer({
       id: "district-labels",
       type: "symbol",
@@ -145,31 +174,48 @@ function initBillMap(canvas, geojson) {
         "text-font": ["Noto Sans Regular"],
         "text-anchor": "center",
       },
-      paint: {
-        "text-color": "#1f2937",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 1.5,
-      },
+      paint: { "text-color": "#1f2937", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+    });
+
+    // Hover: highlight district + show popup with member name/vote
+    map.on("mousemove", "district-fills", function (ev) {
+      map.getCanvas().style.cursor = "pointer";
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+      }
+      hoveredId = ev.features[0].id;
+      map.setFeatureState({ source: "districts", id: hoveredId }, { hover: true });
+
+      var p = ev.features[0].properties;
+      var cls = p.vote_type === "yes" ? "vp-yes" : p.vote_type === "no" ? "vp-no" : "vp-absent";
+      popup.setLngLat(ev.lngLat).setHTML(
+        '<div class="vp-district">District ' + p.district + "</div>" +
+        (p.member_name
+          ? '<div class="vp-name">'  + p.member_name + "</div>" +
+            '<div class="vp-vote ' + cls + '">' + (p.vote_text || "Unknown") + "</div>"
+          : '<div class="vp-vote vp-absent">No data</div>')
+      ).addTo(map);
+    });
+
+    map.on("mouseleave", "district-fills", function () {
+      map.getCanvas().style.cursor = "";
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+      }
+      hoveredId = null;
+      popup.remove();
     });
   });
 }
 
 function initAllBillMaps() {
   if (typeof maplibregl === "undefined") return;
-
   var canvases = document.querySelectorAll(".bill-map-canvas[data-votes]");
   if (!canvases.length) return;
-
   fetch(DISTRICT_GEOJSON_URL)
     .then(function (r) { return r.json(); })
-    .then(function (geojson) {
-      canvases.forEach(function (canvas) {
-        initBillMap(canvas, geojson);
-      });
-    })
-    .catch(function (err) {
-      console.warn("Could not load Seattle district GeoJSON:", err);
-    });
+    .then(function (geojson) { canvases.forEach(function (c) { initBillMap(c, geojson); }); })
+    .catch(function (err) { console.warn("Could not load Seattle district GeoJSON:", err); });
 }
 
 document.addEventListener("DOMContentLoaded", initAllBillMaps);
