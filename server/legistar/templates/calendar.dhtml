@@ -119,7 +119,6 @@
           <p class="bill-committee">{{ entry.committee }}</p>
         </div>
 
-        {% if entry.legislation.district_votes_json != "[]" %}
         <div class="bill-vote-map">
           {% if entry.legislation.at_large_votes %}
           <div class="bill-vote-at-large">
@@ -136,7 +135,6 @@
                data-votes="{{ entry.legislation.district_votes_json }}"
                aria-label="Seattle council district vote map"></div>
         </div>
-        {% endif %}
 
         <div class="content">
           {{ entry.legislation.summary | safe }}

@@ -106,10 +106,12 @@ function enrichGeoJSON(geojson, byDistrict) {
 function initBillMap(canvas, baseGeoJSON) {
   var votes;
   try { votes = JSON.parse(canvas.dataset.votes || "[]"); } catch (e) { return; }
-  if (!votes.length) return;
 
+  var hasVotes = votes.length > 0;
   var byDistrict = {};
-  votes.forEach(function (v) { if (typeof v.district === "number") byDistrict[v.district] = v; });
+  if (hasVotes) {
+    votes.forEach(function (v) { if (typeof v.district === "number") byDistrict[v.district] = v; });
+  }
 
   var geojson = enrichGeoJSON(baseGeoJSON, byDistrict);
   var bounds  = computeBounds(geojson);
@@ -118,7 +120,7 @@ function initBillMap(canvas, baseGeoJSON) {
     container: canvas,
     style: MAP_STYLE,
     bounds: bounds,
-    fitBoundsOptions: { padding: 18, animate: false },
+    fitBoundsOptions: { padding: 24, animate: false },
     attributionControl: false,
   });
 
@@ -133,13 +135,13 @@ function initBillMap(canvas, baseGeoJSON) {
   map.on("load", function () {
     map.addSource("districts", { type: "geojson", data: geojson, generateId: false });
 
-    // Colored district fills
+    // Colored district fills (all grey when no votes)
     map.addLayer({
       id: "district-fills",
       type: "fill",
       source: "districts",
       paint: {
-        "fill-color": buildColorExpr(byDistrict),
+        "fill-color": hasVotes ? buildColorExpr(byDistrict) : VOTE_COLORS.unknown,
         "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.85, 0.60],
       },
     });
@@ -177,34 +179,42 @@ function initBillMap(canvas, baseGeoJSON) {
       paint: { "text-color": "#1f2937", "text-halo-color": "#fff", "text-halo-width": 1.5 },
     });
 
-    // Hover: highlight district + show popup with member name/vote
-    map.on("mousemove", "district-fills", function (ev) {
-      map.getCanvas().style.cursor = "pointer";
-      if (hoveredId !== null) {
-        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
-      }
-      hoveredId = ev.features[0].id;
-      map.setFeatureState({ source: "districts", id: hoveredId }, { hover: true });
+    if (hasVotes) {
+      // Hover: highlight district + show popup with member name/vote
+      map.on("mousemove", "district-fills", function (ev) {
+        map.getCanvas().style.cursor = "pointer";
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+        }
+        hoveredId = ev.features[0].id;
+        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: true });
 
-      var p = ev.features[0].properties;
-      var cls = p.vote_type === "yes" ? "vp-yes" : p.vote_type === "no" ? "vp-no" : "vp-absent";
-      popup.setLngLat(ev.lngLat).setHTML(
-        '<div class="vp-district">District ' + p.district + "</div>" +
-        (p.member_name
-          ? '<div class="vp-name">'  + p.member_name + "</div>" +
-            '<div class="vp-vote ' + cls + '">' + (p.vote_text || "Unknown") + "</div>"
-          : '<div class="vp-vote vp-absent">No data</div>')
-      ).addTo(map);
-    });
+        var p = ev.features[0].properties;
+        var cls = p.vote_type === "yes" ? "vp-yes" : p.vote_type === "no" ? "vp-no" : "vp-absent";
+        popup.setLngLat(ev.lngLat).setHTML(
+          '<div class="vp-district">District ' + p.district + "</div>" +
+          (p.member_name
+            ? '<div class="vp-name">'  + p.member_name + "</div>" +
+              '<div class="vp-vote ' + cls + '">' + (p.vote_text || "Unknown") + "</div>"
+            : '<div class="vp-vote vp-absent">No data</div>')
+        ).addTo(map);
+      });
 
-    map.on("mouseleave", "district-fills", function () {
-      map.getCanvas().style.cursor = "";
-      if (hoveredId !== null) {
-        map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
-      }
-      hoveredId = null;
-      popup.remove();
-    });
+      map.on("mouseleave", "district-fills", function () {
+        map.getCanvas().style.cursor = "";
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: "districts", id: hoveredId }, { hover: false });
+        }
+        hoveredId = null;
+        popup.remove();
+      });
+    } else {
+      // Pending state: overlay label
+      var overlay = document.createElement("div");
+      overlay.className = "bill-map-pending-overlay";
+      overlay.textContent = "Voting upcoming \u2014 bill is currently in Committee";
+      canvas.appendChild(overlay);
+    }
   });
 }
 
