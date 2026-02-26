@@ -57,11 +57,10 @@ jobs:
         run: npm install
       - name: Build static site
         run: |
-          # Generate HTML pages with absolute /Informed_Seattle/static/ references
-          poetry run python manage.py distill-local --force
-          # Collect static files, then copy them where GitHub Pages expects them
-          poetry run python manage.py collectstatic --noinput --verbosity 0
-          mkdir -p dist/static
+          # Build site; distill copies static files to dist/Informed_Seattle/static/
+          poetry run python manage.py distill-local --force --collectstatic
+          # GitHub Pages strips /Informed_Seattle/ prefix, so files must also live
+          # at dist/static/ to be served at /Informed_Seattle/static/
           cp -r /tmp/engage-static/. dist/static/
         env:
           BASE_URL: https://katiejohnsonsf.github.io/Informed_Seattle

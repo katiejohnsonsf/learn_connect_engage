@@ -63,11 +63,10 @@ jobs:
       - name: Build static site
         shell: micromamba-shell {0}
         run: |
-          # Generate HTML pages with absolute /Informed_Seattle/static/ references
-          python manage.py distill-local --force
-          # Collect static files, then copy them where GitHub Pages expects them
-          python manage.py collectstatic --noinput --verbosity 0
-          mkdir -p dist/static
+          # Build site; distill copies static files to dist/Informed_Seattle/static/
+          python manage.py distill-local --force --collectstatic
+          # GitHub Pages strips /Informed_Seattle/ prefix, so files must also live
+          # at dist/static/ to be served at /Informed_Seattle/static/
           cp -r /tmp/engage-static/. dist/static/
         env:
           BASE_URL: https://katiejohnsonsf.github.io/Informed_Seattle
