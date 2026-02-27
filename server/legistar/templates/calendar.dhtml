@@ -126,6 +126,29 @@
               {{ entry.legislation.bill_status_label }}
             </div>
           {% endif %}
+
+          {% if entry.legislation.amendments %}
+            <table class="amendment-table">
+              <thead>
+                <tr>
+                  <th>Member / Body</th>
+                  <th>Amendment</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for amendment in entry.legislation.amendments %}
+                  <tr>
+                    <td>{{ amendment.action_by }}</td>
+                    <td class="amendment-text">{{ amendment.action }}</td>
+                    <td class="amendment-date">{{ amendment.date|date:"M j, Y" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="no-amendments">This council bill had no amendments.</p>
+          {% endif %}
         </div>
 
         <div class="content">

@@ -44,6 +44,9 @@ _COUNCIL_DISTRICTS: dict[str, int] = {
 
 _NAME_PREFIXES = ("councilmember ", "council member ", "cm ", "councilmember. ")
 
+_AMENDMENT_KEYWORDS = frozenset({"amend", "substitute", "revised", "modified", "changed"})
+
+
 _STATUS_TOOLTIPS = {
     "signed": "Signed by Mayor, awaiting or completed codification",
     "vetoed": "Returned by Mayor without signature",
@@ -81,6 +84,24 @@ def _vote_rows_from_entry(entry: dict) -> list[dict]:
 def _is_district_seat(district) -> bool:
     """Return True for geographic district seats (1-7), False for at-large (8-9) or unknown."""
     return isinstance(district, int) and district <= 7
+
+
+def _extract_amendments(legislation) -> list[dict]:
+    """Return amendment actions from the legislation's action history rows."""
+    amendments = []
+    try:
+        for row in legislation.crawl_data.rows:
+            action = (row.action or "").lower()
+            if any(kw in action for kw in _AMENDMENT_KEYWORDS):
+                amendments.append({
+                    "date": row.date,
+                    "action": row.action,
+                    "action_by": row.action_by or "",
+                    "result": row.result or "",
+                })
+    except Exception:
+        pass
+    return amendments
 
 
 def _extract_district_votes(legislation) -> tuple[list[dict], list[dict]]:
@@ -359,6 +380,7 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
     vote_date = (
         _extract_full_council_vote_date(legislation) if is_council_bill else None
     )
+    amendments = _extract_amendments(legislation) if is_council_bill else []
 
     return {
         "legistar_id": legislation.legistar_id,
@@ -376,6 +398,7 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
         "district_votes_json": json.dumps(district_votes),
         "at_large_votes": at_large_votes,
         "vote_date": vote_date,
+        "amendments": amendments,
         "document_table_contexts": [
             _document_table_context(document, style)
             for document in legislation.documents.all()

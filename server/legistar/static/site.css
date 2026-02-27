@@ -815,6 +815,53 @@ h4.action-type {
 
 /* ---- Vote status labels (below map) ---- */
 
+/* ---- Amendment table ---- */
+
+.amendment-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.amendment-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 0.4rem 0.6rem 0.4rem 0;
+}
+
+.amendment-table td {
+  vertical-align: top;
+  padding: 0.5rem 0.6rem 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+}
+
+.amendment-table .amendment-text {
+  background: #fefce8;
+  padding: 0.35rem 0.6rem;
+  border-radius: 3px;
+  font-style: italic;
+}
+
+.amendment-table .amendment-date {
+  white-space: nowrap;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.no-amendments {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 
 .vote-status-result {
   margin-top: 0.75rem;
