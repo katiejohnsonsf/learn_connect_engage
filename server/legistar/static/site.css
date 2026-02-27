@@ -411,6 +411,27 @@ a.view-link:hover {
   color: #ffffff;
 }
 
+.title-tagline {
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.6rem;
+  margin-bottom: 0;
+}
+
+.tagline-dot {
+  display: inline-block;
+  font-size: 1.4em;
+  line-height: 1;
+  vertical-align: middle;
+  margin: 0 0.25em;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: serif;
+}
+
 .title .data-source {
   font-size: 0.9rem;
   color: #666;

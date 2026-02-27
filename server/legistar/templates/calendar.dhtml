@@ -78,6 +78,7 @@
       <span style="font-size: 0.65em; font-weight: 600;">{{ date_range_start|date:"M j" }} &ndash; {{ date_range_end|date:"M j, Y" }}</span>
       {% endif %}
     </h1>
+    <p class="title-tagline">Learn<span class="tagline-dot">&bull;</span>Connect<span class="tagline-dot">&bull;</span>Engage</p>
   </section>
 {% endblock title %}
 {% block content %}
