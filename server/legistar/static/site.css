@@ -734,8 +734,8 @@ h4.action-type {
   right: 0;
   bottom: 0;
   z-index: 10;
-  background: rgba(243, 244, 246, 0.72);
-  backdrop-filter: blur(3px);
+  background: rgba(243, 244, 246, 0.35);
+  backdrop-filter: blur(1px);
   display: flex;
   align-items: center;
   justify-content: center;
