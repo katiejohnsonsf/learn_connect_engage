@@ -71,7 +71,7 @@
 {% endblock main %}
 {% block title %}
   <section class="title">
-    <p class="title-eyebrow">A Proof of Concept for Council Bill Plain Text Summaries</p>
+    <p class="title-eyebrow">A Proof of Concept Council Bill Plain Text Summarizer</p>
     <h1 class="big-title">
       Informed Seattle{% if date_range_start and date_range_end %}<br>
       <span style="font-size: 0.65em; font-weight: 600;">{{ date_range_start|date:"M j" }} &ndash; {{ date_range_end|date:"M j, Y" }}</span>
