@@ -219,7 +219,10 @@ function initBillMap(canvas, baseGeoJSON) {
       // Pending state: overlay label
       var overlay = document.createElement("div");
       overlay.className = "bill-map-pending-overlay";
-      overlay.textContent = "Voting upcoming \u2014 bill is currently in Committee";
+      var label = document.createElement("div");
+      label.className = "bill-map-pending-text";
+      label.textContent = "Voting upcoming \u2014 bill is currently in Committee";
+      overlay.appendChild(label);
       canvas.appendChild(overlay);
     }
   });
