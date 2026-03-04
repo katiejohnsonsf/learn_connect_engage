@@ -5,6 +5,11 @@ on:
     # Tuesdays at 1:30 AM Pacific (9:30 AM UTC)
     - cron: '30 9 * * 2'
   workflow_dispatch: # allow manual trigger from GitHub UI
+    inputs:
+      start_date:
+        description: 'Crawl start date (YYYY-MM-DD). Defaults to 7 days ago.'
+        required: false
+        default: ''
 
 jobs:
   crawl-and-publish:
@@ -53,8 +58,12 @@ jobs:
       - name: Crawl Legistar calendar
         shell: micromamba-shell {0}
         run: |
+          START_DATE="${{ inputs.start_date }}"
+          if [ -z "$START_DATE" ]; then
+            START_DATE=$(date -d '7 days ago' +'%Y-%m-%d')
+          fi
           python manage.py legistar crawl-calendar --customer seattle \
-            --start $(date -d '7 days ago' +'%Y-%m-%d')
+            --start "$START_DATE"
 
       - name: Run summarization pipeline
         shell: micromamba-shell {0}
@@ -63,6 +72,10 @@ jobs:
       - name: Fetch and persist council vote data
         shell: micromamba-shell {0}
         run: python manage.py fetch_vote_data
+
+      - name: Generate amendment summaries
+        shell: micromamba-shell {0}
+        run: python manage.py generate_amendment_summaries
 
       - name: Build static site
         shell: micromamba-shell {0}
