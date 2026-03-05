@@ -18,7 +18,21 @@ from server.legistar.models import (
     Meeting,
     MeetingSummary,
 )
+from django.db.models import Q
+
 from server.lib.style import SUMMARIZATION_STYLES
+
+_COUNCIL_BILL_KIND = "Council Bill"
+_COUNCIL_BILL_LIMIT = 20
+
+
+def _recent_council_bill_ids():
+    """Return the PKs of the N most recently crawled Council Bills."""
+    return list(
+        Legislation.objects.filter(type__icontains=_COUNCIL_BILL_KIND)
+        .order_by("-id")[:_COUNCIL_BILL_LIMIT]
+        .values_list("id", flat=True)
+    )
 
 
 def extract_all_documents():
@@ -53,8 +67,17 @@ def summarize_all_documents():
     print("STEP 2: Summarizing documents")
     print("=" * 80)
 
-    # Only summarize documents with extracted text
-    documents = Document.objects.exclude(extracted_text="")
+    # Only summarize documents with extracted text.
+    # For council bills, restrict to the N most recent to keep runtime bounded.
+    recent_cb_ids = _recent_council_bill_ids()
+    old_cb_doc_ids = (
+        Document.objects.filter(legislations__type__icontains=_COUNCIL_BILL_KIND)
+        .exclude(legislations__id__in=recent_cb_ids)
+        .values_list("id", flat=True)
+    )
+    documents = Document.objects.exclude(extracted_text="").exclude(
+        id__in=old_cb_doc_ids
+    )
     total = documents.count()
 
     if total == 0:
@@ -128,7 +151,7 @@ def clear_council_bill_summaries():
     print("STEP 2.5: Clearing Council Bill summaries for regeneration")
     print("=" * 80)
 
-    council_bills = Legislation.objects.filter(type__icontains="Council Bill")
+    council_bills = Legislation.objects.filter(type__icontains=_COUNCIL_BILL_KIND)
     cb_count = council_bills.count()
 
     if cb_count == 0:
@@ -143,7 +166,7 @@ def clear_council_bill_summaries():
 
     # Delete meeting summaries that depend on these Council Bills
     for meeting in Meeting.objects.filter(time__isnull=False):
-        has_cb = any("Council Bill" in leg.type for leg in meeting.legislations)
+        has_cb = any(_COUNCIL_BILL_KIND in leg.type for leg in meeting.legislations)
         if has_cb:
             deleted = MeetingSummary.objects.filter(meeting=meeting).delete()
             if deleted[0] > 0:
@@ -158,7 +181,11 @@ def summarize_all_legislation():
     print("STEP 3: Summarizing legislation")
     print("=" * 80)
 
-    legislations = Legislation.objects.all()
+    # For council bills, restrict to the N most recent; always include other types.
+    recent_cb_ids = _recent_council_bill_ids()
+    legislations = Legislation.objects.filter(
+        Q(id__in=recent_cb_ids) | ~Q(type__icontains=_COUNCIL_BILL_KIND)
+    )
     total = legislations.count()
 
     if total == 0:

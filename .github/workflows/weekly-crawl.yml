@@ -75,7 +75,7 @@ jobs:
 
       - name: Generate amendment summaries
         shell: micromamba-shell {0}
-        run: python manage.py generate_amendment_summaries
+        run: python manage.py generate_amendment_summaries --limit 20
 
       - name: Build static site
         shell: micromamba-shell {0}

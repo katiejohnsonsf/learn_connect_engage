@@ -293,17 +293,29 @@ class Command(BaseCommand):
             default=None,
             help="Process only the Legislation with this primary key.",
         )
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=None,
+            help=(
+                "Process only the N most recently crawled Council Bills "
+                "(ordered by database id descending)."
+            ),
+        )
 
     def handle(self, *args, **options):
         force = options["force"]
         pk = options["pk"]
+        limit = options["limit"]
 
         if pk is not None:
             legislations = Legislation.objects.filter(pk=pk)
         else:
             legislations = Legislation.objects.filter(
                 type__icontains=_COUNCIL_BILL_KIND
-            )
+            ).order_by("-id")
+            if limit is not None:
+                legislations = legislations[:limit]
 
         total = legislations.count()
         self.stderr.write(f"Processing {total} Council Bill(s)...")
