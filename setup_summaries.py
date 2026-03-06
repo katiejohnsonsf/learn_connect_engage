@@ -67,16 +67,13 @@ def summarize_all_documents():
     print("STEP 2: Summarizing documents")
     print("=" * 80)
 
-    # Only summarize documents with extracted text.
-    # For council bills, restrict to the N most recent to keep runtime bounded.
+    # Only summarize documents belonging to the N most recent council bills.
+    # This keeps OLMo runtime bounded regardless of how many meetings were crawled.
     recent_cb_ids = _recent_council_bill_ids()
-    old_cb_doc_ids = (
-        Document.objects.filter(legislations__type__icontains=_COUNCIL_BILL_KIND)
-        .exclude(legislations__id__in=recent_cb_ids)
-        .values_list("id", flat=True)
-    )
-    documents = Document.objects.exclude(extracted_text="").exclude(
-        id__in=old_cb_doc_ids
+    documents = (
+        Document.objects.filter(legislations__id__in=recent_cb_ids)
+        .exclude(extracted_text="")
+        .distinct()
     )
     total = documents.count()
 
