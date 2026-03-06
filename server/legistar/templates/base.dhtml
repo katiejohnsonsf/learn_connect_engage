@@ -31,7 +31,7 @@
         <div>
           <label for="filter">Summarization style:</label>
           <select name="filter" id="filter">
-            <option value="concise">Concise (GPT-3.5)</option>
+            <option value="what_changed">What Changed</option>
           </select>
         </div>
       </form>

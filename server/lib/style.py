@@ -1,6 +1,6 @@
 import typing as t
 
-SummarizationStyle: t.TypeAlias = t.Literal["concise"]
+SummarizationStyle: t.TypeAlias = t.Literal["what_changed"]
 """
 Define system-wide 'styles' for summarization.
 
@@ -10,4 +10,4 @@ around in case we want to add more styles in the future.
 """
 
 
-SUMMARIZATION_STYLES: list[SummarizationStyle] = ["concise"]
+SUMMARIZATION_STYLES: list[SummarizationStyle] = ["what_changed"]

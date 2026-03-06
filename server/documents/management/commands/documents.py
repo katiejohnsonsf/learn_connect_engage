@@ -124,7 +124,7 @@ def handle_summarize(self, options):
         # Generate summary
         summary_result = olmo.summarize(
             doc.extracted_text,
-            style="concise",
+            style="what_changed",
             max_tokens=512,
         )
 

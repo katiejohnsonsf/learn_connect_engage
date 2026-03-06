@@ -112,5 +112,5 @@ LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
 LEGISLATION_SUMMARIZERS_BY_STYLE: dict[
     SummarizationStyle, LegislationSummarizerCallable
 ] = {
-    "concise": summarize_legislation_concise_dispatch,
+    "what_changed": summarize_legislation_concise_dispatch,
 }

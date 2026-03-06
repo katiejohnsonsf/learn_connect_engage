@@ -278,7 +278,7 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 # ---------------------------------------------------------------------
 
 
-def summarize_bill(bill, style="concise", force=False):
+def summarize_bill(bill, style="what_changed", force=False):
     """
     Summarize a bill with caching.
 
@@ -421,5 +421,5 @@ SUMMARIZERS: list[SummarizerCallable] = [
 
 
 SUMMARIZERS_BY_STYLE: dict[str, SummarizerCallable] = {
-    "concise": olmo_document_summarization,
+    "what_changed": olmo_document_summarization,
 }

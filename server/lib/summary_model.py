@@ -84,7 +84,7 @@ def get_styles():
     global _STYLES
     if _STYLES is None:
         _STYLES = {
-            "concise": SummaryStyle("concise"),
+            "what_changed": SummaryStyle("what_changed"),
             "detailed": SummaryStyle("detailed"),
         }
     return _STYLES

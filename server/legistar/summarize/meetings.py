@@ -102,5 +102,5 @@ MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
 ]
 
 MEETING_SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, MeetingSummarizerCallable] = {
-    "concise": summarize_meeting_gpt35_concise,
+    "what_changed": summarize_meeting_gpt35_concise,
 }

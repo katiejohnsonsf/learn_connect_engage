@@ -111,7 +111,7 @@ class OLMoClient:
     def summarize(
         self,
         text: str,
-        style: str = "concise",
+        style: str = "what_changed",
         max_tokens: int = 256,
     ) -> dict:
         """
@@ -126,7 +126,7 @@ class OLMoClient:
             Dictionary with 'headline' and 'body' keys
         """
         # Create summarization prompt
-        if style == "concise":
+        if style == "what_changed":
             prompt = f"""Please provide a concise summary of the \
 following legislative text.
 First, create a brief headline (under 10 words), then provide a 2-3 sentence summary.
