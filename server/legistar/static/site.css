@@ -1394,47 +1394,74 @@ h4.action-type {
   background: #fafafa;
 }
 
-/* Per-dimension inner table */
-.eval-dim-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-
-.eval-dim-table th {
-  text-align: left;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b7280;
-  border-bottom: 2px solid #e5e7eb;
-  padding: 0.3rem 0.6rem 0.3rem 0;
-}
-
-.eval-dim-table td {
-  vertical-align: top;
-  padding: 0.45rem 0.6rem 0.45rem 0;
+/* Per-dimension bar graph blocks */
+.eval-dim-block {
+  padding: 0.65rem 0;
   border-bottom: 1px solid #f3f4f6;
-  color: #374151;
 }
 
-.eval-dim-label {
-  font-weight: 600;
-  white-space: nowrap;
+.eval-dim-block:last-child {
+  border-bottom: none;
 }
 
-.eval-dim-score {
-  text-align: center;
+.eval-dim-name {
+  font-size: 0.8rem;
   font-weight: 700;
   color: #1f2937;
-  width: 8rem;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.eval-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.eval-bar-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr 2.5rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.eval-bar-axis {
+  font-size: 0.72rem;
+  color: #6b7280;
+  text-align: right;
+}
+
+.eval-bar-track {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.eval-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.eval-bar-high { background: #16a34a; }
+.eval-bar-mid  { background: #d97706; }
+.eval-bar-low  { background: #dc2626; }
+
+.eval-bar-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #374151;
+  text-align: right;
 }
 
 .eval-dim-reasoning {
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
   color: #4b5563;
   font-style: italic;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 /* Empty state */

@@ -872,12 +872,28 @@ def evaluations(request):
         dimensions = []
         for key, label in _RUBRIC_DIMENSIONS:
             dim_data = ev.scores.get(key, {})
+            c_val = dim_data.get("completeness")
+            f_val = dim_data.get("faithfulness")
+            c_bar = round(c_val / 5 * 100) if c_val is not None else 0
+            f_bar = round(f_val / 5 * 100) if f_val is not None else 0
             dimensions.append(
                 {
                     "label": label,
-                    "completeness": dim_data.get("completeness", "\u2014"),
-                    "faithfulness": dim_data.get("faithfulness", "\u2014"),
+                    "completeness": c_val if c_val is not None else "\u2014",
+                    "faithfulness": f_val if f_val is not None else "\u2014",
                     "reasoning": dim_data.get("reasoning", ""),
+                    "completeness_bar": c_bar,
+                    "faithfulness_bar": f_bar,
+                    "completeness_color": "high"
+                    if c_bar >= 80
+                    else "mid"
+                    if c_bar >= 60
+                    else "low",
+                    "faithfulness_color": "high"
+                    if f_bar >= 80
+                    else "mid"
+                    if f_bar >= 60
+                    else "low",
                 }
             )
         evaluation_contexts.append(

@@ -49,7 +49,7 @@ jobs:
           OLMO_MAX_LENGTH=2048
           CRAWL_INTERVAL_DAYS=7
           CRAWL_TIME=01:30
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.INFORMED_SEATTLE_EVALUATOR }}
           EOF
 
       - name: Run database migrations

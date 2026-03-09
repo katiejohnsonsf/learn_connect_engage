@@ -59,26 +59,30 @@
           </summary>
 
           <div class="eval-row-body">
-            <table class="eval-dim-table">
-              <thead>
-                <tr>
-                  <th>Dimension</th>
-                  <th>Completeness (1&ndash;5)</th>
-                  <th>Faithfulness (1&ndash;5)</th>
-                  <th>Reasoning</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for dim in ev.dimensions %}
-                  <tr>
-                    <td class="eval-dim-label">{{ dim.label }}</td>
-                    <td class="eval-dim-score">{{ dim.completeness }}</td>
-                    <td class="eval-dim-score">{{ dim.faithfulness }}</td>
-                    <td class="eval-dim-reasoning">{{ dim.reasoning }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            {% for dim in ev.dimensions %}
+              <div class="eval-dim-block">
+                <div class="eval-dim-name">{{ dim.label }}</div>
+                <div class="eval-bars">
+                  <div class="eval-bar-row">
+                    <span class="eval-bar-axis">Completeness</span>
+                    <div class="eval-bar-track">
+                      <div class="eval-bar-fill eval-bar-{{ dim.completeness_color }}" style="width:{{ dim.completeness_bar }}%"></div>
+                    </div>
+                    <span class="eval-bar-value">{{ dim.completeness }}/5</span>
+                  </div>
+                  <div class="eval-bar-row">
+                    <span class="eval-bar-axis">Faithfulness</span>
+                    <div class="eval-bar-track">
+                      <div class="eval-bar-fill eval-bar-{{ dim.faithfulness_color }}" style="width:{{ dim.faithfulness_bar }}%"></div>
+                    </div>
+                    <span class="eval-bar-value">{{ dim.faithfulness }}/5</span>
+                  </div>
+                </div>
+                {% if dim.reasoning %}
+                  <p class="eval-dim-reasoning">{{ dim.reasoning }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
           </div>
         </details>
       {% endfor %}
