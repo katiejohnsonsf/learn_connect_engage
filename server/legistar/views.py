@@ -36,6 +36,7 @@ def _is_council_bill(legislation) -> bool:
         "CB "
     )
 
+
 _FULL_COUNCIL_BODIES = frozenset(
     {"full council", "seattle city council", "city council"}
 )
