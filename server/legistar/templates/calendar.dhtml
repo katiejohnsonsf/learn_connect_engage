@@ -130,6 +130,7 @@
             <div class="bill-map-canvas"
                  data-votes="{{ entry.legislation.district_votes_json }}"
                  data-amendments="{{ entry.legislation.amendments_json }}"
+                 data-vote-status="{{ entry.legislation.vote_map_status }}"
                  aria-label="Seattle council district vote map"></div>
           </div>
 

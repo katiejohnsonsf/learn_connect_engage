@@ -523,6 +523,20 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
             }
             for d in sorted(_district_members)
         ]
+    # vote_map_status tells the JS which visual state to render:
+    #   "voted"   — real (or synthesized unanimous) vote data available
+    #   "unknown" — bill passed but no per-member vote data stored
+    #   "pending" — bill not yet voted on
+    _has_real_votes = bool((legislation.vote_data or {}).get("action_details"))
+    if _has_real_votes or "passed at full council" in _raw_status:
+        vote_map_status = "voted"
+    elif is_council_bill and (
+        "pass" in _raw_status or "adopt" in _raw_status or "sign" in _raw_status
+    ):
+        vote_map_status = "unknown"
+    else:
+        vote_map_status = "pending"
+
     vote_date = (
         _extract_full_council_vote_date(legislation) if is_council_bill else None
     )
@@ -550,6 +564,7 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
         "bill_status_tooltip": bill_status_tooltip,
         "district_votes": district_votes,
         "district_votes_json": json.dumps(district_votes),
+        "vote_map_status": vote_map_status,
         "at_large_votes": at_large_votes,
         "vote_date": vote_date,
         "amendments": amendments,

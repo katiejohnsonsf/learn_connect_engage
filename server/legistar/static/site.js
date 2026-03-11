@@ -53,7 +53,7 @@ function listenForKeyboardEvents(event) {
 var DISTRICT_GEOJSON_URL =
   "https://raw.githubusercontent.com/seattleio/seattle-boundaries-data/master/data/city-council-districts.geojson";
 var MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-var VOTE_COLORS = { yes: "#16a34a", no: "#dc2626", absent: "#9ca3af", unknown: "#e5e7eb" };
+var VOTE_COLORS = { yes: "#16a34a", no: "#dc2626", absent: "#9ca3af", unknown: "#e5e7eb", unavailable: "#111827" };
 var DISTRICT_MEMBERS = {
   1: "Rob Saka",
   2: "Eddie Lin",
@@ -138,7 +138,9 @@ function initBillMap(canvas, baseGeoJSON) {
   var votes;
   try { votes = JSON.parse(canvas.dataset.votes || "[]"); } catch (e) { return; }
 
+  var voteStatus = canvas.dataset.voteStatus || "pending";
   var hasVotes = votes.length > 0;
+  var isUnknown = voteStatus === "unknown";
   var byDistrict = {};
   if (hasVotes) {
     votes.forEach(function (v) { if (typeof v.district === "number") byDistrict[v.district] = v; });
@@ -182,7 +184,7 @@ function initBillMap(canvas, baseGeoJSON) {
       type: "fill",
       source: "districts",
       paint: {
-        "fill-color": hasVotes ? buildColorExpr(byDistrict) : VOTE_COLORS.unknown,
+        "fill-color": hasVotes ? buildColorExpr(byDistrict) : isUnknown ? VOTE_COLORS.unavailable : VOTE_COLORS.unknown,
         "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.85, 0.60],
       },
     });
@@ -253,7 +255,7 @@ function initBillMap(canvas, baseGeoJSON) {
         popup.remove();
       });
     } else {
-      // Pending state: hover shows district + member name + "Vote upcoming"
+      // No vote data — either "unknown" (passed, no records) or "pending" (not yet voted)
       map.on("mousemove", "district-fills", function (ev) {
         map.getCanvas().style.cursor = "pointer";
         if (hoveredId !== null) {
@@ -265,10 +267,13 @@ function initBillMap(canvas, baseGeoJSON) {
         var p = ev.features[0].properties;
         var memberName = DISTRICT_MEMBERS[p.district] || "";
         var avCls2 = p.amendment_vote_type === "yes" ? "vp-yes" : p.amendment_vote_type === "no" ? "vp-no" : "vp-absent";
+        var voteLabel = isUnknown
+          ? '<div class="vp-vote vp-vote-unknown">Voting status unknown</div>'
+          : '<div class="vp-vote vp-upcoming">Vote upcoming</div>';
         popup.setLngLat(ev.lngLat).setHTML(
           '<div class="vp-district">District ' + p.district + "</div>" +
           (memberName ? '<div class="vp-name">' + memberName + "</div>" : "") +
-          '<div class="vp-vote vp-upcoming">Vote upcoming</div>' +
+          voteLabel +
           (p.amendment_vote_text ? '<div class="vp-amendment-vote ' + avCls2 + '">Amendment: ' + p.amendment_vote_text + "</div>" : "") +
           (p.amendment_text ? '<div class="vp-amendment">Sponsored: ' + p.amendment_text + "</div>" : "")
         ).addTo(map);
@@ -288,7 +293,9 @@ function initBillMap(canvas, baseGeoJSON) {
       overlay.className = "bill-map-pending-overlay";
       var label = document.createElement("div");
       label.className = "bill-map-pending-text";
-      label.textContent = "Voting upcoming \u2014 bill is currently in Committee";
+      label.textContent = isUnknown
+        ? "Vote data unavailable \u2014 individual member votes were not recorded"
+        : "Voting upcoming \u2014 bill is currently in Committee";
       overlay.appendChild(label);
       canvas.appendChild(overlay);
     }

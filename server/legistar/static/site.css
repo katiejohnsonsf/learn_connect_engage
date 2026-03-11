@@ -838,6 +838,7 @@ h4.action-type {
 .vp-no   { background: #fee2e2; color: #991b1b; }
 .vp-absent { background: #f3f4f6; color: #4b5563; }
 .vp-upcoming { background: #eff6ff; color: #1d4ed8; }
+.vp-vote-unknown { background: #1f2937; color: #f9fafb; }
 
 .vp-amendment {
   margin-top: 0.35rem;
