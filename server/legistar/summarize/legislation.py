@@ -88,9 +88,9 @@ def summarize_legislation_concise_dispatch(
     action_details: list[dict[str, t.Any]] | None = None,
 ) -> SummarizationResult:
     """Dispatch to structured summarizer for Council Bills, simple for others."""
-    is_council_bill = (
-        legislation_data is not None
-        and "Council Bill" in legislation_data.get("type", "")
+    is_council_bill = legislation_data is not None and (
+        "Council Bill" in legislation_data.get("type", "")
+        or legislation_data.get("record_no", "").startswith("CB ")
     )
     if is_council_bill:
         return summarize_council_bill_structured(

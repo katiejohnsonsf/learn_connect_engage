@@ -556,7 +556,9 @@ class LegislationSummaryManager(models.Manager):
 
             # Fetch vote details for Council Bills
             action_details = None
-            if "Council Bill" in legislation.type:
+            if "Council Bill" in legislation.type or legislation.record_no.startswith(
+                "CB "
+            ):
                 print("  Fetching vote details from Legistar...")
                 action_details = _fetch_action_details_for_legislation(legislation)
 
